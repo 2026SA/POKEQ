@@ -31,13 +31,23 @@
         </select>
       </label>
 
-      <label class="toggle control-box">
+      <label class="control-box toggle-control">
         <span>数字を表示</span>
         <input id="showNumbers" type="checkbox" checked />
+        <span class="switch-ui" aria-hidden="true"><span class="switch-knob"></span></span>
       </label>
 
+      <label class="control-box toggle-control hint-control">
+        <span>ミスをおしえる</span>
+        <input id="instantHints" type="checkbox" />
+        <span class="switch-ui" aria-hidden="true"><span class="switch-knob"></span></span>
+      </label>
+
+      <a class="btn btn-help" href="howto.html">？ あそびかた</a>
       <button id="newGameBtn" class="btn btn-soft" type="button">新しい問題</button>
     </section>
+
+    <p class="hint-note">「ミスをおしえる」は はじめはOFF。じぶんで考えたいときは、そのままがおすすめです。</p>
 
     <section class="game-area">
       <div class="board-wrap">
@@ -46,6 +56,7 @@
 
       <aside class="side-panel">
         <h2>ポケモンをえらぼう</h2>
+        <p class="choose-guide"><strong>① マスをタップ</strong> → <strong>② ポケモンをタップ</strong></p>
         <div id="palette" class="pokemon-palette" aria-label="ポケモン選択"></div>
 
         <div class="action-grid">
@@ -55,7 +66,7 @@
         </div>
 
         <p id="statusMessage" class="status-message" aria-live="polite">
-          マスをタップして、ポケモンをえらんでね。
+          まず、ポケモンを入れたいマスをタップしてね。
         </p>
       </aside>
     </section>

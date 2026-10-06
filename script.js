@@ -53,6 +53,7 @@ const boardEl = document.getElementById("sudokuBoard");
 const paletteEl = document.getElementById("palette");
 const statusEl = document.getElementById("statusMessage");
 const showNumbersEl = document.getElementById("showNumbers");
+const instantHintsEl = document.getElementById("instantHints");
 const difficultyEl = document.getElementById("difficulty");
 const timerEl = document.getElementById("timer");
 const celebrationEl = document.getElementById("celebration");
@@ -60,7 +61,7 @@ const celebrationPokemonEl = document.getElementById("celebrationPokemon");
 const clearTimeEl = document.getElementById("clearTime");
 
 let puzzle = [], solution = [], state = [];
-let selectedCell = null, selectedPokemon = null;
+let selectedCell = null;
 let startTime = 0, timerId = null, finished = false;
 
 const cloneGrid = grid => grid.map(row => [...row]);
@@ -76,7 +77,9 @@ function startTimer() {
   clearInterval(timerId);
   startTime = Date.now();
   timerEl.textContent = "00:00";
-  timerId = setInterval(() => { if (!finished) timerEl.textContent = formatTime(elapsedSeconds()); }, 1000);
+  timerId = setInterval(() => {
+    if (!finished) timerEl.textContent = formatTime(elapsedSeconds());
+  }, 1000);
 }
 
 function makePokemonVisual(value) {
@@ -87,6 +90,10 @@ function makePokemonVisual(value) {
   return img;
 }
 
+function clearPaletteActive() {
+  document.querySelectorAll(".pokemon-button").forEach(btn => btn.classList.remove("active"));
+}
+
 function renderPalette() {
   paletteEl.innerHTML = "";
   for (let value=1; value<=9; value++) {
@@ -94,18 +101,38 @@ function renderPalette() {
     button.type = "button";
     button.className = "pokemon-button";
     button.dataset.value = value;
-    button.setAttribute("aria-label", `${POKEMON[value].name}を選ぶ`);
+    button.setAttribute("aria-label", `${POKEMON[value].name}を入れる`);
     button.appendChild(makePokemonVisual(value));
-    const name = document.createElement("small"); name.textContent = POKEMON[value].name;
-    const number = document.createElement("span"); number.className = "palette-number"; number.textContent = value; number.hidden = !showNumbersEl.checked;
+
+    const name = document.createElement("small");
+    name.textContent = POKEMON[value].name;
+    const number = document.createElement("span");
+    number.className = "palette-number";
+    number.textContent = value;
+    number.hidden = !showNumbersEl.checked;
     button.append(name, number);
+
     button.addEventListener("click", () => {
-      selectedPokemon = value;
-      document.querySelectorAll(".pokemon-button").forEach(btn => btn.classList.remove("active"));
+      if (finished) return;
+
+      // 「マスを選ぶ → ポケモンを選ぶ」の順番を固定。
+      if (!selectedCell) {
+        setStatus("さきに、ポケモンを入れたいマスをタップしてね。", "bad");
+        return;
+      }
+
+      const {row, col} = selectedCell;
+      if (puzzle[row][col] !== 0) {
+        setStatus("このマスは、はじめから入っているので変えられません。", "bad");
+        return;
+      }
+
+      clearPaletteActive();
       button.classList.add("active");
-      if (selectedCell) placeValue(selectedCell.row, selectedCell.col, value);
-      else setStatus(`${POKEMON[value].name}をえらびました。入れたいマスをタップしてね。`);
+      placeValue(row, col, value);
+      window.setTimeout(clearPaletteActive, 160);
     });
+
     paletteEl.appendChild(button);
   }
 }
@@ -114,16 +141,23 @@ function renderBoard() {
   boardEl.innerHTML = "";
   for (let row=0; row<9; row++) for (let col=0; col<9; col++) {
     const button = document.createElement("button");
-    button.type = "button"; button.className = "cell";
-    button.dataset.row = row; button.dataset.col = col; button.setAttribute("role","gridcell");
+    button.type = "button";
+    button.className = "cell";
+    button.dataset.row = row;
+    button.dataset.col = col;
+    button.setAttribute("role", "gridcell");
+
     if (col===2 || col===5) button.classList.add("block-right");
     if (row===2 || row===5) button.classList.add("block-bottom");
+
     const isFixed = puzzle[row][col] !== 0;
-    if (isFixed) { button.classList.add("fixed"); button.setAttribute("aria-readonly","true"); }
-    button.addEventListener("click", () => {
-      selectCell(row,col);
-      if (!isFixed && selectedPokemon) placeValue(row,col,selectedPokemon);
-    });
+    if (isFixed) {
+      button.classList.add("fixed");
+      button.setAttribute("aria-readonly", "true");
+    }
+
+    // ここでは配置しない。マスを選ぶだけ。
+    button.addEventListener("click", () => selectCell(row, col));
     boardEl.appendChild(button);
   }
   refreshBoard();
@@ -131,126 +165,227 @@ function renderBoard() {
 
 function refreshBoard() {
   document.querySelectorAll(".cell").forEach(cell => {
-    const row = Number(cell.dataset.row), col = Number(cell.dataset.col), value = state[row][col];
-    cell.innerHTML = ""; cell.classList.remove("selected","related","error");
+    const row = Number(cell.dataset.row);
+    const col = Number(cell.dataset.col);
+    const value = state[row][col];
+
+    cell.innerHTML = "";
+    cell.classList.remove("selected", "related", "error");
+
     if (selectedCell) {
-      const sameRow = row===selectedCell.row, sameCol = col===selectedCell.col;
-      const sameBlock = Math.floor(row/3)===Math.floor(selectedCell.row/3) && Math.floor(col/3)===Math.floor(selectedCell.col/3);
+      const sameRow = row === selectedCell.row;
+      const sameCol = col === selectedCell.col;
+      const sameBlock = Math.floor(row/3) === Math.floor(selectedCell.row/3) && Math.floor(col/3) === Math.floor(selectedCell.col/3);
       if (sameRow || sameCol || sameBlock) cell.classList.add("related");
-      if (row===selectedCell.row && col===selectedCell.col) cell.classList.add("selected");
+      if (row === selectedCell.row && col === selectedCell.col) cell.classList.add("selected");
     }
+
     if (value) {
       cell.appendChild(makePokemonVisual(value));
-      const num = document.createElement("span"); num.className="cell-number"; num.textContent=value; num.hidden=!showNumbersEl.checked; cell.appendChild(num);
+      const num = document.createElement("span");
+      num.className = "cell-number";
+      num.textContent = value;
+      num.hidden = !showNumbersEl.checked;
+      cell.appendChild(num);
       cell.setAttribute("aria-label", `${POKEMON[value].name}${puzzle[row][col] ? "、最初から入っているマス" : ""}`);
-    } else cell.setAttribute("aria-label","空いているマス");
+    } else {
+      cell.setAttribute("aria-label", "空いているマス");
+    }
   });
 }
 
-function selectCell(row,col) {
-  selectedCell={row,col}; refreshBoard();
-  if (puzzle[row][col]!==0) setStatus("このマスは最初から入っているので、変更できません。");
-  else if (state[row][col]) setStatus(`${POKEMON[state[row][col]].name}が入っています。別のポケモンに変えることもできます。`);
-  else setStatus("下から入れたいポケモンをえらんでね。");
+function selectCell(row, col) {
+  selectedCell = {row, col};
+  clearPaletteActive();
+  refreshBoard();
+
+  if (puzzle[row][col] !== 0) {
+    setStatus("ここは、はじめから入っているマスです。空いているマスをえらんでね。");
+  } else if (state[row][col]) {
+    setStatus(`${POKEMON[state[row][col]].name}が入っています。変えるなら、下のポケモンをタップしてね。`);
+  } else {
+    setStatus("このマスに入るポケモンを考えて、下からえらんでね。", "good");
+  }
 }
 
-function placeValue(row,col,value) {
-  if (finished || puzzle[row][col]!==0) return;
-  state[row][col]=value; selectedCell={row,col}; refreshBoard();
-  if (hasConflict(row,col,value)) { markConflicts(); setStatus("同じ列・行・3×3の中に、同じポケモンがいるよ。","bad"); }
-  else setStatus(`${POKEMON[value].name}を入れました。`,"good");
+function placeValue(row, col, value) {
+  if (finished || puzzle[row][col] !== 0) return;
+
+  state[row][col] = value;
+  const conflict = hasConflict(row, col, value);
+
+  // 置いたら選択を解除。次の1手も必ず「マス → ポケモン」。
+  selectedCell = null;
+  refreshBoard();
+
+  if (instantHintsEl.checked && conflict) {
+    markConflicts();
+    setStatus("おなじポケモンが、たて・よこ・3×3の中にいるよ。", "bad");
+  } else {
+    setStatus(`${POKEMON[value].name}を入れました。つぎのマスをえらんでね。`);
+  }
+
+  // 全部埋まったときだけ最終判定する。
   if (isBoardFull()) checkBoard(true);
 }
 
-function hasConflict(row,col,value) {
+function hasConflict(row, col, value) {
   for (let c=0;c<9;c++) if (c!==col && state[row][c]===value) return true;
   for (let r=0;r<9;r++) if (r!==row && state[r][col]===value) return true;
   const r0=Math.floor(row/3)*3, c0=Math.floor(col/3)*3;
-  for (let r=r0;r<r0+3;r++) for (let c=c0;c<c0+3;c++) if ((r!==row || c!==col) && state[r][c]===value) return true;
+  for (let r=r0;r<r0+3;r++) for (let c=c0;c<c0+3;c++) {
+    if ((r!==row || c!==col) && state[r][c]===value) return true;
+  }
   return false;
 }
 
 function findConflictCells() {
-  const conflicts=new Set();
-  const addDuplicates=coords => {
-    const m=new Map();
-    coords.forEach(([r,c]) => { const v=state[r][c]; if (!v) return; if (!m.has(v)) m.set(v,[]); m.get(v).push([r,c]); });
-    m.forEach(list => { if (list.length>1) list.forEach(([r,c]) => conflicts.add(`${r}-${c}`)); });
+  const conflicts = new Set();
+  const addDuplicates = coords => {
+    const m = new Map();
+    coords.forEach(([r,c]) => {
+      const v = state[r][c];
+      if (!v) return;
+      if (!m.has(v)) m.set(v, []);
+      m.get(v).push([r,c]);
+    });
+    m.forEach(list => {
+      if (list.length > 1) list.forEach(([r,c]) => conflicts.add(`${r}-${c}`));
+    });
   };
+
   for (let r=0;r<9;r++) addDuplicates(Array.from({length:9},(_,c)=>[r,c]));
   for (let c=0;c<9;c++) addDuplicates(Array.from({length:9},(_,r)=>[r,c]));
   for (let br=0;br<3;br++) for (let bc=0;bc<3;bc++) {
-    const coords=[]; for (let r=br*3;r<br*3+3;r++) for (let c=bc*3;c<bc*3+3;c++) coords.push([r,c]); addDuplicates(coords);
+    const coords=[];
+    for (let r=br*3;r<br*3+3;r++) for (let c=bc*3;c<bc*3+3;c++) coords.push([r,c]);
+    addDuplicates(coords);
   }
   return conflicts;
 }
 
 function markConflicts() {
-  const conflicts=findConflictCells();
-  document.querySelectorAll(".cell").forEach(cell => cell.classList.toggle("error", conflicts.has(`${cell.dataset.row}-${cell.dataset.col}`)));
+  const conflicts = findConflictCells();
+  document.querySelectorAll(".cell").forEach(cell => {
+    cell.classList.toggle("error", conflicts.has(`${cell.dataset.row}-${cell.dataset.col}`));
+  });
 }
 
 function checkBoard(auto=false) {
   if (finished) return;
+
   markConflicts();
-  if (findConflictCells().size>0) { setStatus("同じポケモンが重なっている場所があります。赤いマスを見直してね。","bad"); return; }
+  if (findConflictCells().size > 0) {
+    setStatus("おなじポケモンが重なっているところがあります。ピンクのマスを見直してね。", "bad");
+    return;
+  }
+
   let wrong=0, empty=0;
   for (let r=0;r<9;r++) for (let c=0;c<9;c++) {
     if (state[r][c]===0) empty++;
     else if (state[r][c]!==solution[r][c]) wrong++;
   }
-  if (wrong===0 && empty===0) { finishGame(); return; }
+
+  if (wrong===0 && empty===0) {
+    finishGame();
+    return;
+  }
+
   if (wrong>0) {
     document.querySelectorAll(".cell").forEach(cell => {
       const r=Number(cell.dataset.row), c=Number(cell.dataset.col);
       if (puzzle[r][c]===0 && state[r][c]!==0 && state[r][c]!==solution[r][c]) cell.classList.add("error");
     });
-    setStatus(`まだ ${wrong}か所、見直せるところがあるよ。`,"bad");
-  } else if (!auto) setStatus(`ここまではOK！ あと ${empty}マスです。`,"good");
+    setStatus(`まだ ${wrong}か所、見直せるところがあるよ。`, "bad");
+  } else if (!auto) {
+    setStatus(`ここまではOK！ あと ${empty}マスです。`, "good");
+  }
 }
 
 const isBoardFull = () => state.every(row => row.every(v => v!==0));
 
 function buildCelebrationPokemon() {
-  celebrationPokemonEl.innerHTML="";
+  celebrationPokemonEl.innerHTML = "";
   for (let value=1; value<=9; value++) {
-    const item=document.createElement("div"); item.className="celebration-item";
+    const item = document.createElement("div");
+    item.className = "celebration-item";
     item.appendChild(makePokemonVisual(value));
-    const label=document.createElement("strong"); label.textContent=POKEMON[value].name; item.appendChild(label);
+    const label = document.createElement("strong");
+    label.textContent = POKEMON[value].name;
+    item.appendChild(label);
     celebrationPokemonEl.appendChild(item);
   }
 }
 
 function finishGame() {
-  finished=true; clearInterval(timerId);
-  const time=formatTime(elapsedSeconds()); timerEl.textContent=time; clearTimeEl.textContent=time;
-  buildCelebrationPokemon(); celebrationEl.hidden=false;
+  finished = true;
+  clearInterval(timerId);
+  const time = formatTime(elapsedSeconds());
+  timerEl.textContent = time;
+  clearTimeEl.textContent = time;
+  buildCelebrationPokemon();
+  celebrationEl.hidden = false;
 }
 
 function eraseSelected() {
-  if (!selectedCell || finished) return;
-  const {row,col}=selectedCell;
-  if (puzzle[row][col]!==0) { setStatus("このマスは最初から入っているので、消せません。"); return; }
-  state[row][col]=0; refreshBoard(); setStatus("マスを空にしました。");
+  if (!selectedCell || finished) {
+    if (!finished) setStatus("けしたいマスを、さきにタップしてね。");
+    return;
+  }
+  const {row,col} = selectedCell;
+  if (puzzle[row][col] !== 0) {
+    setStatus("このマスは、はじめから入っているので消せません。", "bad");
+    return;
+  }
+  state[row][col] = 0;
+  selectedCell = null;
+  refreshBoard();
+  setStatus("マスを空にしました。つぎのマスをえらんでね。");
 }
 
 function resetGame() {
-  state=cloneGrid(puzzle); selectedCell=null; selectedPokemon=null; finished=false; celebrationEl.hidden=true;
-  document.querySelectorAll(".pokemon-button").forEach(btn => btn.classList.remove("active"));
-  refreshBoard(); startTimer(); setStatus("最初の状態にもどしました。もう一度ちょうせん！");
+  state = cloneGrid(puzzle);
+  selectedCell = null;
+  finished = false;
+  celebrationEl.hidden = true;
+  clearPaletteActive();
+  refreshBoard();
+  startTimer();
+  setStatus("最初の状態にもどしました。まず、空いているマスをえらんでね。");
 }
 
 function loadNewGame() {
-  const level=difficultyEl.value;
-  const games=GAMES[level];
-  const game=games[Math.floor(Math.random()*games.length)];
-  puzzle=cloneGrid(game.puzzle); solution=cloneGrid(game.solution); state=cloneGrid(puzzle);
-  selectedCell=null; selectedPokemon=null; finished=false; celebrationEl.hidden=true;
-  renderBoard(); renderPalette(); startTimer();
-  setStatus(`${difficultyEl.options[difficultyEl.selectedIndex].text}の問題です。マスをタップして、ポケモンをえらんでね。`);
+  const level = difficultyEl.value;
+  const games = GAMES[level];
+  const game = games[Math.floor(Math.random()*games.length)];
+  puzzle = cloneGrid(game.puzzle);
+  solution = cloneGrid(game.solution);
+  state = cloneGrid(puzzle);
+  selectedCell = null;
+  finished = false;
+  celebrationEl.hidden = true;
+  renderBoard();
+  renderPalette();
+  startTimer();
+  setStatus(`${difficultyEl.options[difficultyEl.selectedIndex].text}の問題です。まず、空いているマスをタップしてね。`);
 }
 
-showNumbersEl.addEventListener("change", () => { refreshBoard(); document.querySelectorAll(".palette-number").forEach(el => el.hidden=!showNumbersEl.checked); });
+showNumbersEl.addEventListener("change", () => {
+  refreshBoard();
+  document.querySelectorAll(".palette-number").forEach(el => el.hidden = !showNumbersEl.checked);
+});
+
+instantHintsEl.addEventListener("change", () => {
+  refreshBoard();
+  if (instantHintsEl.checked) {
+    markConflicts();
+    if (findConflictCells().size > 0) setStatus("ミスをおしえる：ON。重なっているマスをピンクで知らせます。");
+    else setStatus("ミスをおしえる：ON。重なりがあればピンクで知らせます。");
+  } else {
+    setStatus("ミスをおしえる：OFF。まずは自分で考えてみよう！");
+  }
+});
+
 difficultyEl.addEventListener("change", loadNewGame);
 document.getElementById("eraseBtn").addEventListener("click", eraseSelected);
 document.getElementById("checkBtn").addEventListener("click", () => checkBoard(false));
