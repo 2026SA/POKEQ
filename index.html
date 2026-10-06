@@ -4,15 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#fff7d6" />
-  <title>ポケモンすうどく</title>
+  <title>POKEQ | ポケキュー！</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app-shell">
     <header class="app-header">
-      <div>
-        <p class="eyebrow">Pokémon Sudoku</p>
-        <h1>ポケモンすうどく</h1>
+      <div class="brand">
+        <div class="brand-main">POKEQ</div>
+        <div class="brand-ja">ポケキュー！</div>
         <p class="subtitle">9ひきを そろえて クリアしよう！</p>
       </div>
       <div class="timer-card" aria-label="経過時間">
@@ -22,10 +22,20 @@
     </header>
 
     <section class="toolbar" aria-label="ゲーム設定">
-      <label class="toggle">
-        <input id="showNumbers" type="checkbox" checked />
-        <span>数字も表示</span>
+      <label class="control-box">
+        <span>むずかしさ</span>
+        <select id="difficulty">
+          <option value="easy">かんたん</option>
+          <option value="normal" selected>ふつう</option>
+          <option value="hard">むずかしい</option>
+        </select>
       </label>
+
+      <label class="toggle control-box">
+        <span>数字を表示</span>
+        <input id="showNumbers" type="checkbox" checked />
+      </label>
+
       <button id="newGameBtn" class="btn btn-soft" type="button">新しい問題</button>
     </section>
 
@@ -49,6 +59,10 @@
         </p>
       </aside>
     </section>
+
+    <footer class="app-footer">
+      非公式のファン制作・教育用ゲームです。Pokémon関連各社とは関係ありません。
+    </footer>
   </main>
 
   <div id="celebration" class="celebration" hidden>
@@ -57,11 +71,12 @@
       <p class="clear-kicker">CONGRATULATIONS!</p>
       <h2 id="clearTitle">クリア！ おめでとう！</h2>
       <p class="clear-message">9ひきのみんなが そろったよ！</p>
-
       <div id="celebrationPokemon" class="celebration-pokemon"></div>
-
       <p class="clear-time">クリアタイム：<strong id="clearTime">00:00</strong></p>
-      <button id="playAgainBtn" class="btn btn-primary btn-large" type="button">新しい問題にちょうせん</button>
+      <div class="clear-actions">
+        <button id="closeClearBtn" class="btn btn-soft btn-large" type="button">盤面を見る</button>
+        <button id="playAgainBtn" class="btn btn-primary btn-large" type="button">新しい問題にちょうせん</button>
+      </div>
     </div>
   </div>
 
