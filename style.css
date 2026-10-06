@@ -159,3 +159,196 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   .toggle-control input:checked + .switch-ui .switch-knob { transform: translateX(20px); }
   .hint-note { font-size: .7rem; }
 }
+
+/* v4: random puzzles, clearer given/user cells, candidate notes, lock */
+.board-column { min-width: 0; }
+
+/* 問題の固定マスは黄色、自分の答えは青系で明確に分ける */
+.cell.fixed {
+  background: #fff3bd;
+  box-shadow: inset 0 0 0 2px rgba(215, 158, 0, .46);
+}
+.cell.fixed.related { background: #ffefab; }
+.cell.fixed::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-top: 13px solid #d99d00;
+  border-right: 13px solid transparent;
+  pointer-events: none;
+}
+.cell.user-filled {
+  background: #eef7ff;
+}
+.cell.user-filled.related { background: #e2f1ff; }
+.cell.user-filled::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-top: 13px solid #2f6edb;
+  border-right: 13px solid transparent;
+  pointer-events: none;
+}
+.cell.fixed img { width: 90%; height: 86%; }
+.cell.user-filled img { width: 78%; height: 75%; }
+.cell.user-filled .cell-number {
+  background: #2f6edb;
+  color: white;
+}
+.cell.fixed .cell-number {
+  background: #ffd857;
+  color: #493700;
+}
+.cell.user-locked {
+  background: #e7f8ea !important;
+  box-shadow: inset 0 0 0 2px rgba(34, 164, 71, .45);
+}
+.cell.user-locked::before { border-top-color: #22a447; }
+.lock-badge {
+  position: absolute;
+  left: 2px;
+  bottom: 1px;
+  z-index: 3;
+  font-size: clamp(.5rem, 1.25vw, .76rem);
+  line-height: 1;
+}
+
+.board-legend {
+  width: min(100%, 680px);
+  margin: 10px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 13px;
+  align-items: center;
+  justify-content: center;
+  color: #5e6a70;
+  font-size: .72rem;
+  font-weight: 900;
+}
+.board-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.legend-cell {
+  position: relative;
+  width: 23px;
+  height: 23px;
+  display: inline-block;
+  border: 1px solid #bfc9ce;
+  border-radius: 4px;
+}
+.fixed-sample { background: #fff3bd; box-shadow: inset 0 0 0 2px rgba(215,158,0,.42); }
+.fixed-sample::before,
+.user-sample::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 0; height: 0;
+  border-top: 8px solid #d99d00;
+  border-right: 8px solid transparent;
+}
+.user-sample { background: #eef7ff; }
+.user-sample::before { border-top-color: #2f6edb; }
+.legend-lock { font-style: normal; font-size: 1rem; }
+.legend-note {
+  width: 25px;
+  height: 25px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #bfc9ce;
+  border-radius: 4px;
+  background: white;
+  font-style: normal;
+  font-size: .52rem;
+  line-height: .8;
+  color: #315a94;
+}
+
+.input-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0 0 7px;
+  padding: 4px;
+  border-radius: 13px;
+  background: #edf1f3;
+}
+.mode-btn {
+  min-height: 39px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #5f6a70;
+  font-weight: 1000;
+  cursor: pointer;
+}
+.mode-btn.active {
+  background: white;
+  color: #245db8;
+  box-shadow: 0 2px 8px rgba(38,50,56,.12);
+}
+.mode-help {
+  min-height: 34px;
+  margin: 0 0 10px;
+  padding: 6px 9px;
+  border-radius: 9px;
+  background: #f8fafb;
+  color: #66747a;
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+/* 候補はポケモン画像ではなく、1〜9を3×3で表示 */
+.cell.has-notes { background: #fff; }
+.candidate-grid {
+  width: 86%;
+  height: 86%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  align-items: center;
+  justify-items: center;
+  color: #2f5e9d;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.candidate-grid > span {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  font-size: clamp(.45rem, 1.25vw, .8rem);
+  font-weight: 1000;
+  line-height: 1;
+}
+.candidate-grid .candidate-on {
+  color: #235aa9;
+}
+
+.btn-lock {
+  background: #e8f5e9;
+  color: #24713b;
+}
+.btn:disabled,
+.control-box select:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.action-grid-4 { grid-template-columns: repeat(2, 1fr); }
+
+@media (max-width: 620px) {
+  .board-legend { font-size: .64rem; gap: 6px 9px; }
+  .legend-cell { width: 20px; height: 20px; }
+  .candidate-grid > span { font-size: clamp(.38rem, 2.25vw, .66rem); }
+  .cell.fixed::before,
+  .cell.user-filled::before { border-top-width: 10px; border-right-width: 10px; }
+  .lock-badge { left: 1px; bottom: 1px; }
+}

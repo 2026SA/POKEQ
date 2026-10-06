@@ -25,6 +25,7 @@
       <label class="control-box">
         <span>むずかしさ</span>
         <select id="difficulty">
+          <option value="superEasy">スーパーかんたん</option>
           <option value="easy">かんたん</option>
           <option value="normal" selected>ふつう</option>
           <option value="hard">むずかしい</option>
@@ -47,20 +48,36 @@
       <button id="newGameBtn" class="btn btn-soft" type="button">新しい問題</button>
     </section>
 
-    <p class="hint-note">「ミスをおしえる」は はじめはOFF。じぶんで考えたいときは、そのままがおすすめです。</p>
+    <p class="hint-note">「新しい問題」を押すたびに、ちがう問題をつくります。はじめて遊ぶ子は「スーパーかんたん」がおすすめ。「ミスをおしえる」は はじめはOFFです。</p>
 
     <section class="game-area">
-      <div class="board-wrap">
-        <div id="sudokuBoard" class="sudoku-board" role="grid" aria-label="数独盤面"></div>
+      <div class="board-column">
+        <div class="board-wrap">
+          <div id="sudokuBoard" class="sudoku-board" role="grid" aria-label="数独盤面"></div>
+        </div>
+        <div class="board-legend" aria-label="マスの見分け方">
+          <span><i class="legend-cell fixed-sample"></i>問題のポケモン</span>
+          <span><i class="legend-cell user-sample"></i>自分で入れたポケモン</span>
+          <span><i class="legend-lock">🔒</i>自分でロック</span>
+          <span><i class="legend-note">1 3<br> 7</i>候補メモ</span>
+        </div>
       </div>
 
       <aside class="side-panel">
         <h2>ポケモンをえらぼう</h2>
-        <p class="choose-guide"><strong>① マスをタップ</strong> → <strong>② ポケモンをタップ</strong></p>
+        <p class="choose-guide"><strong>① マスをタップ</strong> → <strong>② 考える</strong> → <strong>③ ポケモンをタップ</strong></p>
+
+        <div class="input-mode" role="group" aria-label="入力モード">
+          <button id="answerModeBtn" class="mode-btn active" type="button">ポケモンを入れる</button>
+          <button id="noteModeBtn" class="mode-btn" type="button">候補メモ</button>
+        </div>
+        <p id="modeHelp" class="mode-help">えらんだマスに、1ひきのポケモンを入れます。</p>
+
         <div id="palette" class="pokemon-palette" aria-label="ポケモン選択"></div>
 
-        <div class="action-grid">
+        <div class="action-grid action-grid-4">
           <button id="eraseBtn" class="btn btn-soft" type="button">けす</button>
+          <button id="lockBtn" class="btn btn-lock" type="button">🔒 ロック</button>
           <button id="checkBtn" class="btn btn-primary" type="button">チェック</button>
           <button id="resetBtn" class="btn btn-soft" type="button">やりなおす</button>
         </div>
