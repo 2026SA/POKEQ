@@ -45,15 +45,18 @@
       </label>
 
       <a class="btn btn-help" href="howto.html">？ あそびかた</a>
+      <button id="pauseBtn" class="btn btn-pause" type="button">⏸ 一時中断</button>
+      <button id="rankingBtn" class="btn btn-ranking" type="button">🏆 マイランキング</button>
       <button id="newGameBtn" class="btn btn-soft" type="button">新しい問題</button>
     </section>
 
     <p class="hint-note">「新しい問題」を押すたびに、ちがう問題をつくります。はじめて遊ぶ子は「スーパーかんたん」がおすすめ。「ミスをおしえる」は はじめはOFFです。</p>
 
     <section class="game-area">
-      <div class="board-column">
-        <div class="board-wrap">
-          <div id="sudokuBoard" class="sudoku-board" role="grid" aria-label="数独盤面"></div>
+      <div class="preboard-info">
+        <div class="preboard-title-row">
+          <h2>ポケモンをえらぼう</h2>
+          <p class="choose-guide"><strong>① マスをタップ</strong> → <strong>② 考える</strong> → <strong>③ ポケモンをタップ</strong></p>
         </div>
         <div class="board-legend" aria-label="マスの見分け方">
           <span><i class="legend-cell fixed-sample"></i>問題のポケモン</span>
@@ -63,10 +66,13 @@
         </div>
       </div>
 
-      <aside class="side-panel">
-        <h2>ポケモンをえらぼう</h2>
-        <p class="choose-guide"><strong>① マスをタップ</strong> → <strong>② 考える</strong> → <strong>③ ポケモンをタップ</strong></p>
+      <div class="board-column">
+        <div class="board-wrap">
+          <div id="sudokuBoard" class="sudoku-board" role="grid" aria-label="数独盤面"></div>
+        </div>
+      </div>
 
+      <aside class="side-panel">
         <div class="input-mode" role="group" aria-label="入力モード">
           <button id="answerModeBtn" class="mode-btn active" type="button">ポケモンを入れる</button>
           <button id="noteModeBtn" class="mode-btn" type="button">候補メモ</button>
@@ -101,9 +107,42 @@
       <p class="clear-message">9ひきのみんなが そろったよ！</p>
       <div id="celebrationPokemon" class="celebration-pokemon"></div>
       <p class="clear-time">クリアタイム：<strong id="clearTime">00:00</strong></p>
+      <p id="clearRank" class="clear-rank"></p>
       <div class="clear-actions">
         <button id="closeClearBtn" class="btn btn-soft btn-large" type="button">盤面を見る</button>
         <button id="playAgainBtn" class="btn btn-primary btn-large" type="button">新しい問題にちょうせん</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pauseOverlay" class="pause-overlay" hidden>
+    <div class="pause-card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+      <p class="pause-kicker">BREAK TIME</p>
+      <h2 id="pauseTitle">ひとやすみ中…</h2>
+      <p class="pause-copy">タイマーも止まっています。もどったら、つづきから遊べるよ。</p>
+      <div class="pause-pokemon" aria-hidden="true">
+        <img src="images/2_eevee.png" alt="">
+        <img src="images/3_piplup.png" alt="">
+        <img src="images/7_sprigatito.png" alt="">
+      </div>
+      <button id="resumeBtn" class="btn btn-primary btn-large" type="button">▶ つづきから</button>
+    </div>
+  </div>
+
+  <div id="rankingOverlay" class="ranking-overlay" hidden>
+    <div class="ranking-card" role="dialog" aria-modal="true" aria-labelledby="rankingTitle">
+      <div class="ranking-head">
+        <div>
+          <p class="ranking-kicker">MY RANKING</p>
+          <h2 id="rankingTitle">🏆 マイランキング</h2>
+          <p>この端末・このブラウザに、レベルごとのベストタイムを保存します。</p>
+        </div>
+        <button id="closeRankingBtn" class="ranking-close" type="button" aria-label="ランキングを閉じる">×</button>
+      </div>
+      <div id="rankingLists" class="ranking-lists"></div>
+      <div class="ranking-actions">
+        <button id="clearRankingBtn" class="btn btn-soft" type="button">ランキングをリセット</button>
+        <button id="closeRankingBtn2" class="btn btn-primary" type="button">ゲームにもどる</button>
       </div>
     </div>
   </div>

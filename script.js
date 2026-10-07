@@ -33,17 +33,34 @@ const modeHelpEl = document.getElementById("modeHelp");
 const lockBtn = document.getElementById("lockBtn");
 const eraseBtn = document.getElementById("eraseBtn");
 const newGameBtn = document.getElementById("newGameBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+const pauseOverlayEl = document.getElementById("pauseOverlay");
+const resumeBtn = document.getElementById("resumeBtn");
+const rankingBtn = document.getElementById("rankingBtn");
+const rankingOverlayEl = document.getElementById("rankingOverlay");
+const rankingListsEl = document.getElementById("rankingLists");
+const clearRankEl = document.getElementById("clearRank");
 
 let puzzle = [], solution = [], state = [];
 let notes = [], locked = [];
 let selectedCell = null;
 let inputMode = "answer";
 let startTime = 0, timerId = null, finished = false;
+let elapsedBeforeRun = 0;
+let paused = false;
 let generating = false;
+let currentLevel = "normal";
+let rankingResumeAfterClose = false;
+
+const RANKING_KEY = "POKEQ_MY_RANKING_V1";
+const RANKING_LIMIT = 5;
 
 const cloneGrid = grid => grid.map(row => [...row]);
 const formatTime = s => `${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}`;
-const elapsedSeconds = () => Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+const elapsedSeconds = () => {
+  const live = (!paused && !finished && !generating && startTime) ? Math.floor((Date.now() - startTime) / 1000) : 0;
+  return Math.max(0, elapsedBeforeRun + live);
+};
 const makeEmptyNotes = () => Array.from({length: 9}, () => Array.from({length: 9}, () => new Set()));
 const makeFalseGrid = () => Array.from({length: 9}, () => Array(9).fill(false));
 
@@ -61,12 +78,151 @@ function setStatus(message, tone="") {
   statusEl.className = `status-message ${tone}`.trim();
 }
 
-function startTimer() {
+function loadRankings() {
+  try {
+    const raw = localStorage.getItem(RANKING_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      superEasy: Array.isArray(parsed.superEasy) ? parsed.superEasy : [],
+      easy: Array.isArray(parsed.easy) ? parsed.easy : [],
+      normal: Array.isArray(parsed.normal) ? parsed.normal : [],
+      hard: Array.isArray(parsed.hard) ? parsed.hard : []
+    };
+  } catch (_) {
+    return { superEasy: [], easy: [], normal: [], hard: [] };
+  }
+}
+
+function saveRankings(data) {
+  try {
+    localStorage.setItem(RANKING_KEY, JSON.stringify(data));
+  } catch (_) {
+    // localStorage が使えない環境でもゲーム本体は続ける
+  }
+}
+
+function addRanking(level, seconds) {
+  const rankings = loadRankings();
+  const list = rankings[level] || [];
+  const entry = {
+    seconds,
+    date: new Date().toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })
+  };
+  list.push(entry);
+  list.sort((a,b) => a.seconds - b.seconds);
+  const place = list.findIndex(item => item === entry) + 1;
+  rankings[level] = list.slice(0, RANKING_LIMIT);
+  saveRankings(rankings);
+  return {
+    place: place > RANKING_LIMIT ? null : place,
+    isBest: place === 1,
+    saved: place <= RANKING_LIMIT
+  };
+}
+
+function renderRankings() {
+  const rankings = loadRankings();
+  rankingListsEl.innerHTML = "";
+  const order = ["superEasy", "easy", "normal", "hard"];
+
+  order.forEach(level => {
+    const panel = document.createElement("section");
+    panel.className = "rank-panel";
+
+    const title = document.createElement("h3");
+    title.textContent = DIFFICULTY[level].label;
+    panel.appendChild(title);
+
+    const list = rankings[level] || [];
+    if (!list.length) {
+      const empty = document.createElement("p");
+      empty.className = "rank-empty";
+      empty.textContent = "まだ記録がありません。";
+      panel.appendChild(empty);
+    } else {
+      const table = document.createElement("table");
+      table.className = "rank-table";
+      table.innerHTML = "<thead><tr><th>順位</th><th>タイム</th><th>日付</th></tr></thead>";
+      const tbody = document.createElement("tbody");
+
+      list.forEach((item, index) => {
+        const tr = document.createElement("tr");
+        const medals = ["🥇","🥈","🥉"];
+        tr.innerHTML = `
+          <td class="rank-place">${medals[index] || `${index+1}位`}</td>
+          <td class="rank-time">${formatTime(item.seconds)}</td>
+          <td>${item.date || ""}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      panel.appendChild(table);
+    }
+
+    rankingListsEl.appendChild(panel);
+  });
+}
+
+function openRankings() {
+  // プレイ中にランキングを見る時間はクリアタイムへ加算しない。
+  rankingResumeAfterClose = false;
+  if (!finished && !generating && !paused) {
+    elapsedBeforeRun = elapsedSeconds();
+    startTime = 0;
+    paused = true;
+    clearInterval(timerId);
+    timerEl.textContent = formatTime(elapsedBeforeRun);
+    rankingResumeAfterClose = true;
+  }
+  renderRankings();
+  rankingOverlayEl.hidden = false;
+}
+
+function closeRankings() {
+  rankingOverlayEl.hidden = true;
+  if (rankingResumeAfterClose && !finished && !generating) {
+    rankingResumeAfterClose = false;
+    paused = false;
+    startTime = Date.now();
+    clearInterval(timerId);
+    timerId = setInterval(() => {
+      if (!finished && !generating && !paused) timerEl.textContent = formatTime(elapsedSeconds());
+    }, 1000);
+  }
+}
+
+function startTimer(reset=true) {
   clearInterval(timerId);
+  if (reset) {
+    elapsedBeforeRun = 0;
+    timerEl.textContent = "00:00";
+  }
+  paused = false;
   startTime = Date.now();
-  timerEl.textContent = "00:00";
   timerId = setInterval(() => {
-    if (!finished && !generating) timerEl.textContent = formatTime(elapsedSeconds());
+    if (!finished && !generating && !paused) timerEl.textContent = formatTime(elapsedSeconds());
+  }, 1000);
+}
+
+function pauseGame() {
+  if (finished || generating || paused) return;
+  elapsedBeforeRun = elapsedSeconds();
+  startTime = 0;
+  paused = true;
+  clearInterval(timerId);
+  timerEl.textContent = formatTime(elapsedBeforeRun);
+  pauseOverlayEl.hidden = false;
+}
+
+function resumeGame() {
+  if (!paused || finished || generating) return;
+  pauseOverlayEl.hidden = true;
+  paused = false;
+  startTime = Date.now();
+  clearInterval(timerId);
+  timerId = setInterval(() => {
+    if (!finished && !generating && !paused) timerEl.textContent = formatTime(elapsedSeconds());
   }, 1000);
 }
 
@@ -281,7 +437,7 @@ function renderPalette() {
 }
 
 function handlePaletteClick(value, button) {
-  if (finished || generating) return;
+  if (finished || generating || paused) return;
   if (!selectedCell) {
     setStatus("さきに、ポケモンを入れたいマスをタップしてね。", "bad");
     return;
@@ -390,7 +546,7 @@ function refreshBoard() {
 }
 
 function selectCell(row, col) {
-  if (generating) return;
+  if (generating || paused) return;
   selectedCell = {row, col};
   clearPaletteActive();
   refreshBoard();
@@ -581,11 +737,26 @@ function buildCelebrationPokemon() {
 }
 
 function finishGame() {
+  const seconds = elapsedSeconds();
+  elapsedBeforeRun = seconds;
+  startTime = 0;
   finished = true;
+  paused = false;
   clearInterval(timerId);
-  const time = formatTime(elapsedSeconds());
+
+  const time = formatTime(seconds);
   timerEl.textContent = time;
   clearTimeEl.textContent = time;
+
+  const result = addRanking(currentLevel, seconds);
+  if (result.isBest) {
+    clearRankEl.textContent = `🏆 ${DIFFICULTY[currentLevel].label}の自己ベスト！`;
+  } else if (result.saved) {
+    clearRankEl.textContent = `🏆 ${DIFFICULTY[currentLevel].label}・マイランキング ${result.place}位！`;
+  } else {
+    clearRankEl.textContent = `${DIFFICULTY[currentLevel].label}をクリア！ ベスト5をめざそう。`;
+  }
+
   buildCelebrationPokemon();
   celebrationEl.hidden = false;
 }
@@ -616,6 +787,8 @@ function resetGame() {
   locked = makeFalseGrid();
   selectedCell = null;
   finished = false;
+  paused = false;
+  pauseOverlayEl.hidden = true;
   celebrationEl.hidden = true;
   clearPaletteActive();
   refreshBoard();
@@ -636,6 +809,9 @@ function loadNewGame() {
   setTimeout(() => {
     try {
       const level = difficultyEl.value;
+      currentLevel = level;
+      paused = false;
+      pauseOverlayEl.hidden = true;
       const game = generatePuzzle(level);
       puzzle = cloneGrid(game.puzzle);
       solution = cloneGrid(game.solution);
@@ -697,7 +873,23 @@ lockBtn.addEventListener("click", toggleLock);
 document.getElementById("checkBtn").addEventListener("click", () => checkBoard(false));
 document.getElementById("resetBtn").addEventListener("click", resetGame);
 newGameBtn.addEventListener("click", loadNewGame);
+pauseBtn.addEventListener("click", pauseGame);
+resumeBtn.addEventListener("click", resumeGame);
+rankingBtn.addEventListener("click", openRankings);
+document.getElementById("closeRankingBtn").addEventListener("click", closeRankings);
+document.getElementById("closeRankingBtn2").addEventListener("click", closeRankings);
+document.getElementById("clearRankingBtn").addEventListener("click", () => {
+  if (window.confirm("マイランキングをすべて消しますか？")) {
+    try { localStorage.removeItem(RANKING_KEY); } catch (_) {}
+    renderRankings();
+  }
+});
 document.getElementById("playAgainBtn").addEventListener("click", loadNewGame);
 document.getElementById("closeClearBtn").addEventListener("click", () => celebrationEl.hidden=true);
+
+// ESCでもランキングだけ閉じられる。休けい画面は誤操作防止のため「つづきから」ボタンのみ。
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !rankingOverlayEl.hidden) closeRankings();
+});
 
 loadNewGame();
